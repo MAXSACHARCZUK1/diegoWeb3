@@ -1,0 +1,18 @@
+/* 
+   Responsive adjustments are now integrated into styles.css using a Mobile-First approach.
+   This file is kept for specific overrides if needed in the future.
+*/
+
+@media (max-width: 480px) {
+    .hero-title {
+        font-size: 2rem;
+    }
+    
+    .section-title {
+        font-size: 1.25rem;
+    }
+    
+    .payment-title {
+        font-size: 1.1rem;
+    }
+}
