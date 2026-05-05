@@ -81,12 +81,15 @@ function setupEventListeners() {
     if (elements.billInput) elements.billInput.addEventListener('change', (e) => handleBillUpload(e));
     if (elements.amount) elements.amount.addEventListener('input', () => updateSummary());
     
-    // Configuración de los botones finales para abrir los grupos
+    // --- LÓGICA DE LOS BOTONES DE FINALIZACIÓN EN 2 PASOS ---
     if (elements.whatsappPrimary) {
-        elements.whatsappPrimary.addEventListener('click', () => sendOperationToWhatsApp());
+        elements.whatsappPrimary.innerHTML = "<strong>1️⃣ PASO 1: Unirse al Grupo</strong>";
+        elements.whatsappPrimary.addEventListener('click', () => joinWhatsAppGroup());
     }
+    
     if (elements.whatsappSecondary) {
-        elements.whatsappSecondary.addEventListener('click', () => sendOperationToWhatsApp());
+        elements.whatsappSecondary.innerHTML = "<strong>2️⃣ PASO 2: Enviar Datos para Finalizar</strong>";
+        elements.whatsappSecondary.addEventListener('click', () => sendDataToGroup());
     }
 }
 
@@ -119,32 +122,39 @@ async function handleBillUpload(e) {
     document.querySelectorAll('#step-3 .step-next').forEach(btn => btn.disabled = false);
 }
 
-// FUNCIÓN CORREGIDA CON LOS LINKS DE LOS GRUPOS
-function sendOperationToWhatsApp() {
-    const s = SERVICES.find(x => x.id === state.selectedService);
-    const p = s.providers.find(x => x.id === state.selectedProvider);
-    const facturaLink = state.serverFileName; 
-    
-    // Determinamos qué link usar basado en el descuento
-    // Link de 20% si es menor o igual a 20, sino el de 60%
+// --- PASO 1: UNIRSE AL GRUPO ---
+function joinWhatsAppGroup() {
     const groupInviteLink = (state.discount <= 20) 
         ? "https://chat.whatsapp.com/D19vBLDAbF9Df59alVPDZj" 
         : "https://chat.whatsapp.com/ImzBMjvRkg9EwsEKHM4BvN";
-
-    const message = `Hola! Quiero realizar un pago con descuento.
-📌 Servicio: ${s.name} - ${p.name}
-💰 Importe: ${formatCurrency(state.amount)}
-🎁 Descuento: ${state.discount}%
-💵 Total a pagar: ${formatCurrency(state.finalAmount)}
-👤 Cliente: ${elements.clientName.value}
-📄 Factura: ${facturaLink}`;
-
-    // Armamos la URL final: Link del grupo + mensaje
-    const url = `${groupInviteLink}?text=${encodeURIComponent(message)}`;
     
+    window.open(groupInviteLink, '_blank');
+    
+    alert("¡Perfecto! Una vez que te unas al grupo en WhatsApp, volvé a esta pantalla y tocá el PASO 2 para enviar tu factura.");
+}
+
+// --- PASO 2: ENVIAR DATOS AL GRUPO ---
+function sendDataToGroup() {
+    const s = SERVICES.find(x => x.id === state.selectedService);
+    const p = s.providers.find(x => x.id === state.selectedProvider);
+    const facturaLink = state.serverFileName; 
+
+    const message = `*NUEVO PAGO REGISTRADO* 🚀
+📌 *Servicio:* ${s.name} - ${p.name}
+💰 *Importe:* ${formatCurrency(state.amount)}
+🎁 *Descuento:* ${state.discount}%
+💵 *Total a pagar:* ${formatCurrency(state.finalAmount)}
+👤 *Cliente:* ${elements.clientName.value}
+📄 *Factura:* ${facturaLink}`;
+
+    // Abre WhatsApp para elegir a quién enviar el mensaje (el grupo recién unido)
+    const url = `https://wa.me/?text=${encodeURIComponent(message)}`;
+    
+    // Copia de seguridad al portapapeles
+    navigator.clipboard.writeText(message).catch(err => console.log('No se pudo copiar al portapapeles', err));
+
     window.open(url, '_blank');
-    
-    // Pasamos a la pantalla de confirmación después de un momento
+
     setTimeout(() => {
         goToStep(6);
     }, 1500);
