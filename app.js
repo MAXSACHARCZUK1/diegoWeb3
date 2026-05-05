@@ -61,8 +61,17 @@ app.post('/leer-factura', upload.single('billFile'), async (req, res) => {
             archivoUrl: imageUrl 
         });
     } catch (error) {
-        console.error("Error en el servidor:", error);
-        res.status(500).json({ success: false });
+       // console.error("Error en el servidor:", error);
+        //res.status(500).json({ success: false });
+        // MEJORA PARA VER EL ERROR REAL EN RENDER
+        console.error("--- INICIO DE ERROR DETALLADO ---");
+        console.error("Mensaje:", error.message);
+        console.error("Stack:", error.stack);
+        if (error.http_code) console.error("Cloudinary Code:", error.http_code);
+        console.error("Objeto completo:", JSON.stringify(error, null, 2));
+        console.error("--- FIN DE ERROR DETALLADO ---");
+        
+        res.status(500).json({ success: false, detalle: error.message });
     }
 });
 
