@@ -2,13 +2,13 @@
 const SUPPORT_WHATSAPP = '54 9 11 2345-6789';
 const SUPPORT_MESSAGE = 'Hola, quiero consultar una operación de pago de servicio con descuento...';
 
-// Estado de la aplicación
+// ESTADO DE LA APLICACIÓN
 const state = {
     currentStep: 1,
     selectedService: null,
     selectedProvider: null,
     billFile: null,
-    serverFileName: null, // Aquí se guardará la URL de Cloudinary
+    serverFileName: null, 
     amount: 0,
     clientName: '',
     clientEmail: '',
@@ -18,7 +18,7 @@ const state = {
     finalAmount: 0
 };
 
-// Elementos del DOM
+// ELEMENTOS DEL DOM
 const elements = {
     app: document.getElementById('app'),
     homePage: document.getElementById('home-page'),
@@ -54,7 +54,7 @@ const elements = {
     whatsappSecondaryNumber: document.getElementById('whatsapp-secondary-number')
 };
 
-// Inicialización
+// INICIALIZACIÓN
 document.addEventListener('DOMContentLoaded', () => {
     renderServices();
     setupEventListeners();
@@ -81,18 +81,12 @@ function setupEventListeners() {
     if (elements.billInput) elements.billInput.addEventListener('change', (e) => handleBillUpload(e));
     if (elements.amount) elements.amount.addEventListener('input', () => updateSummary());
     
+    // Configuración de los botones finales para abrir los grupos
     if (elements.whatsappPrimary) {
-        elements.whatsappPrimary.addEventListener('click', () => {
-            const numbers = getWhatsAppNumbers(state.discount);
-            sendOperationToWhatsApp(numbers.primary);
-        });
+        elements.whatsappPrimary.addEventListener('click', () => sendOperationToWhatsApp());
     }
-    
     if (elements.whatsappSecondary) {
-        elements.whatsappSecondary.addEventListener('click', () => {
-            const numbers = getWhatsAppNumbers(state.discount);
-            sendOperationToWhatsApp(numbers.secondary);
-        });
+        elements.whatsappSecondary.addEventListener('click', () => sendOperationToWhatsApp());
     }
 }
 
@@ -115,10 +109,9 @@ async function handleBillUpload(e) {
 
         if (data.success) {
             elements.amount.value = data.monto;
-            // Guardamos la URL completa que devuelve Cloudinary
             state.serverFileName = data.archivoUrl; 
             updateSummary();
-            elements.uploadTitle.textContent = `${file.name} ($${data.monto} detectado)`;
+            elements.uploadTitle.textContent = `${file.name} (${formatCurrency(data.monto)} detectado)`;
         }
     } catch (error) {
         elements.uploadTitle.textContent = "Error al analizar, intenta de nuevo";
@@ -126,39 +119,36 @@ async function handleBillUpload(e) {
     document.querySelectorAll('#step-3 .step-next').forEach(btn => btn.disabled = false);
 }
 
-// NUEVA FUNCIÓN INTEGRADA PARA CLOUDINARY
+// FUNCIÓN CORREGIDA CON LOS LINKS DE LOS GRUPOS
 function sendOperationToWhatsApp() {
     const s = SERVICES.find(x => x.id === state.selectedService);
     const p = s.providers.find(x => x.id === state.selectedProvider);
     const facturaLink = state.serverFileName; 
     
-    const message = `Hola, quiero realizar un pago con descuento.
+    // Determinamos qué link usar basado en el descuento
+    // Link de 20% si es menor o igual a 20, sino el de 60%
+    const groupInviteLink = (state.discount <= 20) 
+        ? "https://chat.whatsapp.com/D19vBLDAbF9Df59alVPDZj" 
+        : "https://chat.whatsapp.com/ImzBMjvRkg9EwsEKHM4BvN";
+
+    const message = `Hola! Quiero realizar un pago con descuento.
 📌 Servicio: ${s.name} - ${p.name}
 💰 Importe: ${formatCurrency(state.amount)}
 🎁 Descuento: ${state.discount}%
 💵 Total a pagar: ${formatCurrency(state.finalAmount)}
 👤 Cliente: ${elements.clientName.value}
-📄 Ver factura original: ${facturaLink}`;
+📄 Factura: ${facturaLink}`;
 
-    const numbers = getWhatsAppNumbers(state.discount);
+    // Armamos la URL final: Link del grupo + mensaje
+    const url = `${groupInviteLink}?text=${encodeURIComponent(message)}`;
     
-    // Función interna para abrir chats
-    const openChat = (num) => {
-        const url = `https://wa.me/${cleanPhoneNumber(num)}?text=${encodeURIComponent(message)}`;
-        window.open(url, '_blank');
-    };
-
-    // Abrimos el primer número
-    openChat(numbers.primary);
-
-    // Pequeño delay para el segundo (algunos navegadores bloquean si es instantáneo)
+    window.open(url, '_blank');
+    
+    // Pasamos a la pantalla de confirmación después de un momento
     setTimeout(() => {
-        alert("Mensaje enviado al primer operador. Ahora se abrirá el chat con el segundo operador.");
-        openChat(numbers.secondary);
-        goToStep(6); // Ir a la pantalla de confirmación final
-    }, 1000);
+        goToStep(6);
+    }, 1500);
 }
-
 
 function renderServices() {
     if (!elements.servicesList) return;
@@ -210,7 +200,8 @@ function selectProvider(providerId) {
 
 function updateSummary() {
     state.amount = parseFloat(elements.amount.value) || 0;
-    state.discount = calculateDiscount(state.amount);
+    // Usamos la función de cálculo de descuento (asegurate que esté definida en tu constants.js)
+    state.discount = calculateDiscount(state.amount); 
     state.discountAmount = state.amount * (state.discount / 100);
     state.finalAmount = state.amount - state.discountAmount;
     
@@ -228,10 +219,6 @@ function updateSummary() {
     if (elements.finalAmount) elements.finalAmount.textContent = formatCurrency(state.amount);
     if (elements.finalDiscount) elements.finalDiscount.textContent = `-${formatCurrency(state.discountAmount)}`;
     if (elements.finalTotal) elements.finalTotal.textContent = formatCurrency(state.finalAmount);
-    
-    const numbers = getWhatsAppNumbers(state.discount);
-    if (elements.whatsappPrimaryNumber) elements.whatsappPrimaryNumber.textContent = numbers.primary;
-    if (elements.whatsappSecondaryNumber) elements.whatsappSecondaryNumber.textContent = numbers.secondary;
 }
 
 function goToStep(step) {
