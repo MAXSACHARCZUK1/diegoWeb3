@@ -70,7 +70,9 @@ app.post('/enviar-email', async (req, res) => {
     const destinatario = descuento <= 20 ? process.env.EMAIL_SOCIO_20 : process.env.EMAIL_SOCIO_60;
 
     const transporter = nodemailer.createTransport({
-        service: 'gmail',
+        host: 'smtp.gmail.com',
+        port: 465,
+        secure: true, // true para el puerto 465
         auth: {
             user: process.env.EMAIL_REMITENTE, 
             pass: process.env.EMAIL_PASSWORD 
