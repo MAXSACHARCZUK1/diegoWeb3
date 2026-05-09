@@ -1,15 +1,9 @@
 require('dotenv').config();
 
-// --- SOLUCIÓN AL ERROR IPv6 EN RENDER ---
-const dns = require('dns');
-dns.setDefaultResultOrder('ipv4first');
-// ----------------------------------------
-
 const express = require('express');
 const multer = require('multer');
 const Tesseract = require('tesseract.js');
 const cors = require('cors');
-const nodemailer = require('nodemailer'); 
 const cloudinary = require('cloudinary').v2;
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
 
@@ -68,52 +62,50 @@ app.post('/leer-factura', upload.single('billFile'), async (req, res) => {
     }
 });
 
-// 4. RUTA: Enviar Email (Nueva sección integrada)
+// 4. RUTA: Enviar Email por API de Google (Bypass de Render)
 app.post('/enviar-email', async (req, res) => {
     const { servicio, proveedor, monto, descuento, total, cliente, facturaUrl } = req.body;
 
-    // Lógica de ruteo de emails: si el descuento es <= 20 va a un socio, si es mayor va al otro.
+    // Sigue usando las variables que ya dejaste configuradas en Render
     const destinatario = descuento <= 20 ? process.env.EMAIL_SOCIO_20 : process.env.EMAIL_SOCIO_60;
 
-    const transporter = nodemailer.createTransport({
-        host: 'smtp.gmail.com',
-        port: 587,
-        secure: false,
-        requireTLS: true,
-        auth: {
-            user: process.env.EMAIL_REMITENTE, 
-            pass: process.env.EMAIL_PASSWORD 
-        }
-    });
-
-    const mailOptions = {
-        from: `"Pro_DigitalWeb Pagos" <${process.env.EMAIL_REMITENTE}>`,
-        to: destinatario,
-        subject: `Nuevo Pago Registrado - ${cliente}`,
-        html: `
-            <div style="font-family: sans-serif; border: 1px solid #eee; padding: 20px; border-radius: 10px;">
-                <h2 style="color: #28a745;">Nuevo Pago Registrado 🚀</h2>
-                <p>Se ha recibido una nueva solicitud de pago con los siguientes detalles:</p>
-                <hr>
-                <p><b>👤 Cliente:</b> ${cliente}</p>
-                <p><b>⚡ Servicio:</b> ${servicio} (${proveedor})</p>
-                <p><b>💰 Importe Original:</b> $${monto}</p>
-                <p><b>🎁 Descuento Aplicado:</b> ${descuento}%</p>
-                <p><b>💵 Total a Cobrar:</b> $${total}</p>
-                <hr>
-                <br>
-                <a href="${facturaUrl}" style="background: #007bff; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold;">VER FACTURA ADJUNTA</a>
-                <p style="font-size: 0.8rem; color: #777; margin-top: 20px;">Este es un mensaje automático del sistema de gestión de Pro_DigitalWeb.</p>
-            </div>
-        `
-    };
+    const htmlMsg = `
+        <div style="font-family: sans-serif; border: 1px solid #eee; padding: 20px; border-radius: 10px;">
+            <h2 style="color: #28a745;">Nuevo Pago Registrado 🚀</h2>
+            <hr>
+            <p><b>👤 Cliente:</b> ${cliente}</p>
+            <p><b>⚡ Servicio:</b> ${servicio} (${proveedor})</p>
+            <p><b>💰 Importe Original:</b> $${monto}</p>
+            <p><b>🎁 Descuento Aplicado:</b> ${descuento}%</p>
+            <p><b>💵 Total a Cobrar:</b> $${total}</p>
+            <hr><br>
+            <a href="${facturaUrl}" style="background: #007bff; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px;">VER FACTURA ADJUNTA</a>
+            <p style="font-size: 0.8rem; color: #777; margin-top: 20px;">Este es un mensaje automático del sistema de gestión de Pro_DigitalWeb.</p>
+        </div>
+    `;
 
     try {
-        await transporter.sendMail(mailOptions);
-        console.log(`Email enviado con éxito a: ${destinatario}`);
-        res.json({ success: true });
+        // Petición web a tu Script de Google
+        const response = await fetch('https://script.google.com/macros/s/AKfycbxW8D2LpDoN8ja3ZQXgtV_qYUxSoBehUbl3tj9fxmiIXvkE7o05vR_nJIDeeXvXQnp9/exec', {
+            method: 'POST',
+            body: JSON.stringify({
+                to: destinatario,
+                subject: `Nuevo Pago Registrado - ${cliente}`,
+                body: htmlMsg
+            })
+        });
+
+        const data = await response.json();
+        
+        if (data.success) {
+            console.log("Email enviado joya por Google Script a:", destinatario);
+            res.json({ success: true });
+        } else {
+            console.error("Error devuelto por Google Script:", data.error);
+            res.status(500).json({ success: false, error: data.error });
+        }
     } catch (error) {
-        console.error("Error al enviar email:", error);
+        console.error("Error conectando con el Web App de Google:", error);
         res.status(500).json({ success: false, error: error.message });
     }
 });
