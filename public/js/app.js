@@ -82,14 +82,15 @@ function setupEventListeners() {
     if (elements.amount) elements.amount.addEventListener('input', () => updateSummary());
     
     // --- LÓGICA DE LOS BOTONES DE FINALIZACIÓN EN 2 PASOS ---
+   // --- LÓGICA DEL BOTÓN DE ENVÍO DE EMAIL ---
     if (elements.whatsappPrimary) {
-        elements.whatsappPrimary.innerHTML = "<strong>1️⃣ PASO 1: Unirse al Grupo</strong>";
-        elements.whatsappPrimary.addEventListener('click', () => joinWhatsAppGroup());
+        elements.whatsappPrimary.innerHTML = "<strong>✉️ Enviar Datos de Pago</strong>";
+        elements.whatsappPrimary.addEventListener('click', () => sendDataToEmail());
     }
     
+    // Ocultamos el botón secundario porque ya no hace falta el Paso 2
     if (elements.whatsappSecondary) {
-        elements.whatsappSecondary.innerHTML = "<strong>2️⃣ PASO 2: Enviar Datos para Finalizar</strong>";
-        elements.whatsappSecondary.addEventListener('click', () => sendDataToGroup());
+        elements.whatsappSecondary.style.display = 'none';
     }
 }
 
@@ -122,43 +123,47 @@ async function handleBillUpload(e) {
     document.querySelectorAll('#step-3 .step-next').forEach(btn => btn.disabled = false);
 }
 
-// --- PASO 1: UNIRSE AL GRUPO ---
-function joinWhatsAppGroup() {
-    const groupInviteLink = (state.discount <= 20) 
-        ? "https://chat.whatsapp.com/D19vBLDAbF9Df59alVPDZj" 
-        : "https://chat.whatsapp.com/ImzBMjvRkg9EwsEKHM4BvN";
-    
-    window.open(groupInviteLink, '_blank');
-    
-    alert("¡Perfecto! Una vez que te unas al grupo en WhatsApp, volvé a esta pantalla y tocá el PASO 2 para enviar tu factura.");
-}
+async function sendDataToEmail() {
+    // Cambiamos el texto del botón para que el usuario sepa que está cargando
+    elements.whatsappPrimary.innerHTML = "<strong>⏳ Enviando...</strong>";
+    elements.whatsappPrimary.disabled = true;
 
-// --- PASO 2: ENVIAR DATOS AL GRUPO ---
-function sendDataToGroup() {
     const s = SERVICES.find(x => x.id === state.selectedService);
     const p = s.providers.find(x => x.id === state.selectedProvider);
-    const facturaLink = state.serverFileName; 
 
-    const message = `*NUEVO PAGO REGISTRADO* 🚀
-📌 *Servicio:* ${s.name} - ${p.name}
-💰 *Importe:* ${formatCurrency(state.amount)}
-🎁 *Descuento:* ${state.discount}%
-💵 *Total a pagar:* ${formatCurrency(state.finalAmount)}
-👤 *Cliente:* ${elements.clientName.value}
-📄 *Factura:* ${facturaLink}`;
+    const payload = {
+        servicio: s.name,
+        proveedor: p.name,
+        monto: state.amount,
+        descuento: state.discount,
+        total: state.finalAmount,
+        cliente: elements.clientName.value,
+        facturaUrl: state.serverFileName
+    };
 
-    // Abre WhatsApp para elegir a quién enviar el mensaje (el grupo recién unido)
-    const url = `https://wa.me/?text=${encodeURIComponent(message)}`;
-    
-    // Copia de seguridad al portapapeles
-    navigator.clipboard.writeText(message).catch(err => console.log('No se pudo copiar al portapapeles', err));
+    try {
+        const response = await fetch('/enviar-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
 
-    window.open(url, '_blank');
+        const data = await response.json();
 
-    setTimeout(() => {
-        goToStep(6);
-    }, 1500);
+        if (data.success) {
+            goToStep(6); // Va a la pantalla final de éxito
+        } else {
+            alert("Hubo un error al enviar el correo. Por favor intentá de nuevo.");
+            elements.whatsappPrimary.innerHTML = "<strong>✉️ Enviar Datos de Pago</strong>";
+            elements.whatsappPrimary.disabled = false;
+        }
+    } catch (error) {
+        alert("Error de conexión.");
+        elements.whatsappPrimary.innerHTML = "<strong>✉️ Enviar Datos de Pago</strong>";
+        elements.whatsappPrimary.disabled = false;
+    }
 }
+
 
 function renderServices() {
     if (!elements.servicesList) return;
