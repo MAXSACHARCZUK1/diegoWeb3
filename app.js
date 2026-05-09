@@ -63,9 +63,11 @@ app.post('/leer-factura', upload.single('billFile'), async (req, res) => {
 
 // 4. RUTA: Enviar Email vía Google Bridge (Bypass de Render)
 app.post('/enviar-email', async (req, res) => {
+    console.log("➡️ 1. Intentando enviar email. Datos recibidos:", req.body);
     const { servicio, proveedor, monto, descuento, total, cliente, facturaUrl } = req.body;
 
     const destinatario = descuento <= 20 ? process.env.EMAIL_SOCIO_20 : process.env.EMAIL_SOCIO_60;
+    console.log("📨 2. Destinatario:", destinatario);
 
     const htmlMsg = `
         <div style="font-family: sans-serif; border: 1px solid #eee; padding: 20px; border-radius: 10px;">
@@ -83,25 +85,37 @@ app.post('/enviar-email', async (req, res) => {
     `;
 
     try {
+        console.log("🚀 3. Conectando con Google Bridge...");
+        
         const response = await fetch('https://script.google.com/macros/s/AKfycbz5RA028K7_E-_XxJKIl8iuO8Mzhn3mjh2qDR_aib57f5_tIYSc7LF0tU8EgG69HbU_/exec', {
             method: 'POST',
+            headers: {
+                'Content-Type': 'text/plain;charset=utf-8' // Google Apps Script prefiere este formato para evitar bloqueos CORS
+            },
             body: JSON.stringify({
                 to: destinatario,
                 subject: `Nuevo Pago Registrado - ${cliente}`,
                 body: htmlMsg
-            })
+            }),
+            redirect: 'follow'
         });
 
-        const data = await response.json();
+        console.log("✅ 4. Status de respuesta:", response.status);
+        
+        const textResponse = await response.text();
+        console.log("📝 5. Cuerpo de respuesta:", textResponse);
+
+        const data = JSON.parse(textResponse);
         
         if (data.success) {
-            console.log("Email enviado con éxito a través de Google Bridge a:", destinatario);
+            console.log("🎉 6. ¡Email enviado con éxito!");
             res.json({ success: true });
         } else {
+            console.error("❌ Error en el script de Google:", data.error);
             res.status(500).json({ success: false, error: data.error });
         }
     } catch (error) {
-        console.error("Error en la conexión con Google Bridge:", error);
+        console.error("💥 Error fatal en el proceso de envío:", error);
         res.status(500).json({ success: false, error: error.message });
     }
 });
