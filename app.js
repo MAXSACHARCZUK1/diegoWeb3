@@ -1,9 +1,15 @@
 require('dotenv').config();
+
+// --- SOLUCIÓN AL ERROR IPv6 EN RENDER ---
+const dns = require('dns');
+dns.setDefaultResultOrder('ipv4first');
+// ----------------------------------------
+
 const express = require('express');
 const multer = require('multer');
 const Tesseract = require('tesseract.js');
 const cors = require('cors');
-const nodemailer = require('nodemailer'); // Importamos nodemailer
+const nodemailer = require('nodemailer'); 
 const cloudinary = require('cloudinary').v2;
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
 
@@ -12,7 +18,7 @@ const port = process.env.PORT || 3000;
 
 // Middleware esenciales
 app.use(cors());
-app.use(express.json()); // Habilita la lectura de JSON en las peticiones
+app.use(express.json()); 
 app.use(express.static('public')); 
 
 // 1. Configuración de Cloudinary
