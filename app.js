@@ -77,8 +77,9 @@ app.post('/enviar-email', async (req, res) => {
 
     const transporter = nodemailer.createTransport({
         host: 'smtp.gmail.com',
-        port: 465,
-        secure: true, // true para el puerto 465
+        port: 587,
+        secure: false,
+        requireTLS: true,
         auth: {
             user: process.env.EMAIL_REMITENTE, 
             pass: process.env.EMAIL_PASSWORD 
