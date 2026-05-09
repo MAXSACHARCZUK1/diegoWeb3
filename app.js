@@ -10,7 +10,6 @@ const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Middleware esenciales
 app.use(cors());
 app.use(express.json()); 
 app.use(express.static('public')); 
@@ -62,11 +61,10 @@ app.post('/leer-factura', upload.single('billFile'), async (req, res) => {
     }
 });
 
-// 4. RUTA: Enviar Email por API de Google (Bypass de Render)
+// 4. RUTA: Enviar Email vía Google Bridge (Bypass de Render)
 app.post('/enviar-email', async (req, res) => {
     const { servicio, proveedor, monto, descuento, total, cliente, facturaUrl } = req.body;
 
-    // Sigue usando las variables que ya dejaste configuradas en Render
     const destinatario = descuento <= 20 ? process.env.EMAIL_SOCIO_20 : process.env.EMAIL_SOCIO_60;
 
     const htmlMsg = `
@@ -79,14 +77,13 @@ app.post('/enviar-email', async (req, res) => {
             <p><b>🎁 Descuento Aplicado:</b> ${descuento}%</p>
             <p><b>💵 Total a Cobrar:</b> $${total}</p>
             <hr><br>
-            <a href="${facturaUrl}" style="background: #007bff; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px;">VER FACTURA ADJUNTA</a>
+            <a href="${facturaUrl}" style="background: #007bff; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold;">VER FACTURA ADJUNTA</a>
             <p style="font-size: 0.8rem; color: #777; margin-top: 20px;">Este es un mensaje automático del sistema de gestión de Pro_DigitalWeb.</p>
         </div>
     `;
 
     try {
-        // Petición web a tu Script de Google
-        const response = await fetch('https://script.google.com/macros/s/AKfycbxW8D2LpDoN8ja3ZQXgtV_qYUxSoBehUbl3tj9fxmiIXvkE7o05vR_nJIDeeXvXQnp9/exec', {
+        const response = await fetch('https://script.google.com/macros/s/AKfycbz5RA028K7_E-_XxJKIl8iuO8Mzhn3mjh2qDR_aib57f5_tIYSc7LF0tU8EgG69HbU_/exec', {
             method: 'POST',
             body: JSON.stringify({
                 to: destinatario,
@@ -98,14 +95,13 @@ app.post('/enviar-email', async (req, res) => {
         const data = await response.json();
         
         if (data.success) {
-            console.log("Email enviado joya por Google Script a:", destinatario);
+            console.log("Email enviado con éxito a través de Google Bridge a:", destinatario);
             res.json({ success: true });
         } else {
-            console.error("Error devuelto por Google Script:", data.error);
             res.status(500).json({ success: false, error: data.error });
         }
     } catch (error) {
-        console.error("Error conectando con el Web App de Google:", error);
+        console.error("Error en la conexión con Google Bridge:", error);
         res.status(500).json({ success: false, error: error.message });
     }
 });
